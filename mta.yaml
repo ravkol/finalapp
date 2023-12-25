@@ -3,97 +3,115 @@ ID: finalapp
 description: A simple CAP project.
 version: 1.0.0
 modules:
-  - name: finalapp-srv
-    type: nodejs
-    path: gen/srv
-    provides:
-      - name: srv-api
-        properties:
-          srv-url: ${default-url}
-    parameters:
-      buildpack: nodejs_buildpack
-    build-parameters:
-      builder: npm
-    requires:
-      - name: finalapp-auth
-      - name: finalapp-db
-  - name: finalapp-app-content
-    type: com.sap.application.content
-    path: .
-    requires:
-      - name: finalapp-repo-host
-        parameters:
-          content-target: true
-    build-parameters:
-      build-result: resources
-      requires:
-        - artifacts:
-            - comelcadminapp1.zip
-          name: comelcadminapp1
-          target-path: resources/
-  - name: comelcadminapp1
-    type: html5
-    path: app/adminapp1
-    build-parameters:
-      build-result: dist
-      builder: custom
-      commands:
-        - npm install
-        - npm run build:cf
-      supported-platforms:
-        []
-
-  - name: finalapp-db-deployer
-    type: hdb
-    path: gen/db
-    parameters:
-      buildpack: nodejs_buildpack
-    requires:
-      - name: finalapp-db
-resources:
-  - name: finalapp-repo-host
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: html5-apps-repo
-      service-name: finalapp-html5-srv
-      service-plan: app-host
-  - name: finalapp-destination-service
-    type: org.cloudfoundry.managed-service
-    parameters:
-      config:
-        HTML5Runtime_enabled: false
-        init_data:
-          instance:
-            destinations:
-              - Authentication: NoAuthentication
-                Name: ui5
-                ProxyType: Internet
-                Type: HTTP
-                URL: https://ui5.sap.com
-            existing_destinations_policy: update
-        version: 1.0.0
-      service: destination
-      service-name: finalapp-destination-service
-      service-plan: lite
+- name: finalapp-srv
+  type: nodejs
+  path: gen/srv
+  requires:
   - name: finalapp-auth
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: xsuaa
-      service-plan: application
-      path: ./xs-security.json
-      config:
-        xsappname: finalapp-${org}-${space}
-        tenant-mode: dedicated
   - name: finalapp-db
-    type: com.sap.xs.hdi-container
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+  build-parameters:
+    builder: npm
+- name: finalapp-app-content
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: finalapp-repo-host
     parameters:
-      service: hana
-      service-plan: hdi-shared
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - comelcadminapp1.zip
+      name: comelcadminapp1
+      target-path: resources/
+- name: comelcadminapp1
+  type: html5
+  path: app/adminapp1
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: finalapp-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: finalapp-db
+  parameters:
+    buildpack: nodejs_buildpack
+- name: finalapp-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: finalapp-destination-service
+    parameters:
+      content-target: true
+  - name: finalapp-repo-host
+    parameters:
+      service-key:
+        name: finalapp-repo-host-key
+  - name: finalapp-auth
+    parameters:
+      service-key:
+        name: finalapp-auth-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: nimmi_finalapp_repo_host
+          ServiceInstanceName: finalapp-html5-srv
+          ServiceKeyName: finalapp-repo-host-key
+          sap.cloud.service: nimmi
+        - Authentication: OAuth2UserTokenExchange
+          Name: nimmi_finalapp_auth
+          ServiceKeyName: finalapp-auth-key
+          sap.cloud.service: nimmi
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+resources:
+- name: finalapp-repo-host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: finalapp-html5-srv
+    service-plan: app-host
+- name: finalapp-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      version: 1.0.0
+    service: destination
+    service-name: finalapp-destination-service
+    service-plan: lite
+- name: finalapp-auth
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      tenant-mode: dedicated
+      xsappname: finalapp-${org}-${space}
+    path: ./xs-security.json
+    service: xsuaa
+    service-plan: application
+- name: finalapp-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
 parameters:
   deploy_mode: html5-repo
   enable-parallel-deployments: true
 build-parameters:
   before-all:
-    - builder: custom
-      commands:
-        - npx cds build --production
+  - builder: custom
+    commands:
+    - npx cds build --production
