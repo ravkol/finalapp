@@ -1,0 +1,11 @@
+@server=http://localhost:4004
+@service=/odata/v4/admin
+############################################
+
+GET {{server}}{{service}}/maintItems
+#############################################
+
+POST  {{server}}{{service}}/maintItems
+Content-Type: application/json
+
+{"problemDescription": "Test Ravinder"}
